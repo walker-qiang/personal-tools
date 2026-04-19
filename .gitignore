@@ -1,0 +1,55 @@
+# 全局 secrets / 环境 / 状态文件 — 永远不进 git
+secrets/
+**/secrets/
+*.env
+*.env.*
+!*.env.example
+.envrc
+
+# 数据库与运行时状态
+*.db
+*.sqlite
+*.sqlite3
+state/
+**/state/
+data/runtime/
+
+# 凭证与私钥
+*.pem
+*.p12
+*.key
+id_rsa
+id_ed25519
+credentials.json
+.aws/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Node
+node_modules/
+.npm/
+npm-debug.log*
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Codex 本地缓存(若 sync 脚本生成软链记录)
+.skill-sync-state.json
+
+# 日志
+*.log
+logs/
