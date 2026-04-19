@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTD/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>personal.weekly-reflection</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3.11</string>
+        <string>/Users/qiang.lilq/obsidian-wiki/skills/weekly-reflection/scripts/draft.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/qiang.lilq/obsidian-wiki</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>21</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/qiang.lilq/Library/Logs/personal-tools/weekly-reflection.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/qiang.lilq/Library/Logs/personal-tools/weekly-reflection.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>Nice</key>
+    <integer>10</integer>
+</dict>
+</plist>
