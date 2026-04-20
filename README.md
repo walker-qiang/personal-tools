@@ -1,60 +1,97 @@
 # personal-tools
 
-> 个人系统的"工具与肌肉" — MCP servers / 脚本 / 自动化 plist / Context Middleware。
-> **不放数据**(数据在 `obsidian-wiki/`), **不放 secrets**(`~/.config/personal/secrets/`)。
-> 设计依据: `obsidian-wiki/_system/SYSTEM-DESIGN.md` §13-§16
+> 个人系统的"工具与肌肉" — MCP servers / 脚本 / 自动化 plist。
+> **数据**在 [obsidian-wiki](https://github.com/walker-qiang/obsidian-wiki); **secrets** 在 `~/.config/personal/secrets/`，永不入 git。
+> 设计依据: `obsidian-wiki/_system/SYSTEM-DESIGN.md` §13–§16。
+
+---
+
+## TL;DR — 这仓是什么 / 不是什么 / 是给谁的
+
+| 维度 | 说明 |
+|---|---|
+| **是什么** | 一个 macOS / zsh 用户的私人 AI-knowledge-system 配套工具仓: MCP servers + bash 维护脚本 + launchd 模板 |
+| **不是什么** | 不是通用脚手架 / 不是给陌生人开箱即用的 / 不放任何 secret 或 token / 不放业务数据 |
+| **是给谁的** | 主人自己 (主用户 walker-qiang); 公开是因为它要从 obsidian-wiki 链回来, 也方便代码 review。第三方可参考思路, 但**直接 clone 跑大概率不工作** (见下) |
+| **路径假设** | 硬编码 `~/obsidian-wiki` / `~/.codex/` / `~/.local/share/personal/`。换路径需要改源 |
+| **依赖** | macOS (launchd 是 macOS 独有); zsh; git; brew + uv (装 wiki-search) |
+
+---
 
 ## 目录
 
-| 目录 | 内容 | 启动 |
+| 目录 | 内容 | 状态 |
 |---|---|---|
-| `mcp-servers/` | Python MCP servers (`wiki-search`, `llm-gateway` …) | P1 step 15 起 |
-| `scripts/` | 可独立跑的 bash / python 脚本 (`sync-skills-to-codex.sh`, `check-agents-sync.sh` …) | 即起 |
-| `launchd/` | macOS launchd `*.plist` 与 `install-launchd.sh` | P1 step 12 |
-| `context-middleware/` | 统一上下文路由模块(契约 9 实现件) | P1 step 20 |
-| `git-hooks-shared/` | 跨仓库共用 hook 模板(若需要) | 按需 |
+| `mcp-servers/wiki-search/` | Python MCP server, 把 obsidian-wiki 暴露给 Codex 做全文检索 (SQLite FTS5) | ✅ P1-15 已上线 (v0.1) |
+| `scripts/` | 维护脚本 (`sync-skills-to-codex.sh`, `check-agents-sync.sh`, `check-draft-ownership.sh`) | ✅ 全可跑 |
+| `launchd/` | macOS launchd `*.plist` 与 install/uninstall 脚本 | ✅ 骨架在; 当前默认无 job |
+| `mcp-servers/llm-gateway/` | (规划) 出口拦截, 按数据分级决定模型可不可以收到 | ⏸ P1-17 挂起 |
+| `context-middleware/` | (规划) 输入侧上下文路由 | ⏸ P1-20 挂起 |
+
+---
 
 ## 仓库内 vs 仓库外
 
-| 资产 | 在哪 | 为什么 |
+| 资产 | 住哪 | 为什么不在 personal-tools |
 |---|---|---|
-| obsidian-wiki 自己的 git hooks | `obsidian-wiki/_system/git-hooks/` | hook 必须随仓库走, 不能放 personal-tools |
-| MCP server 实现 | 本仓库 `mcp-servers/` | 跨仓库共用, 需独立版本 |
-| Skills 内容(SKILL.md) | `obsidian-wiki/skills/` | 数据/流程视为知识资产 |
-| Skills 同步脚本 | 本仓库 `scripts/sync-skills-to-codex.sh` | 工具不是知识 |
-| secrets / *.env | `~/.config/personal/secrets/` (不入任何 git) | 契约 11 |
+| obsidian-wiki 的 git hooks (pre-commit / pre-push) | `obsidian-wiki/_system/git-hooks/` | hook 必须随仓库走 |
+| MCP server 实现 | 本仓库 `mcp-servers/` | 工具实现可被多仓库复用 |
+| Skills 内容 (SKILL.md) | `obsidian-wiki/skills/` | 知识资产, 不是工具 |
+| Skills 同步到 Codex 的脚本 | 本仓库 `scripts/sync-skills-to-codex.sh` | 工具 |
+| secrets / `*.env` | `~/.config/personal/secrets/` (不入任何 git) | 契约 11 |
+| 业务数据 / wiki 文档 / 决策草稿 | `obsidian-wiki/` | 知识 vs 工具分离 |
 
-## 当前状态(P0)
+---
 
-- [x] 骨架目录建好
-- [x] `.gitignore` (兜底 secrets / db / pyc)
-- [x] `scripts/sync-skills-to-codex.sh` (P0 step 6 走方案 B)
-- [x] `scripts/check-agents-sync.sh` (最小版, 只校验文件存在)
-- [ ] 接 git remote (用户自己决定 GitHub / Gitee, 暂不远端化)
-- [ ] 第一个 MCP server `wiki-search` (P1 step 15)
+## 怎么试 (主人本机或好奇的第三方)
 
-## 怎么跑
+> 第三方注意: 这些脚本会假定 `~/obsidian-wiki` 存在。第三方 clone 时建议先 fork [obsidian-wiki](https://github.com/walker-qiang/obsidian-wiki) 一起拉, 或自己改源里的路径。
 
 ```bash
-# 第一次: 仅本地 init, 没有 remote
+git clone git@github.com:walker-qiang/personal-tools.git ~/personal-tools
 cd ~/personal-tools
 
-# 同步 obsidian-wiki/skills 到 Codex
-./scripts/sync-skills-to-codex.sh
-
-# 校验 obsidian-wiki/AGENTS.md 与 standards 同步
+# 看看维护脚本能跑 (前提: ~/obsidian-wiki 存在)
 ./scripts/check-agents-sync.sh
+./scripts/check-draft-ownership.sh
+
+# 装 wiki-search MCP server (前提: brew install uv)
+cd mcp-servers/wiki-search
+uv sync
+WIKI_ROOT=$HOME/obsidian-wiki uv run wiki-search-index   # 应输出 indexed 91 docs
+WIKI_ROOT=$HOME/obsidian-wiki uv run wiki-search-server  # stdio MCP, Ctrl-C 退出
 ```
 
-## 远端化时(P1 起视情况)
+要把 wiki-search 接入 Codex, 见 `mcp-servers/wiki-search/README.md` 与 `obsidian-wiki/_system/BOOTSTRAP.md` §4.2。
 
-```bash
-# 选 GitHub:
-gh repo create personal-tools --private --source=. --remote=origin --push
+---
 
-# 选 Gitee / 自建:
-git remote add origin <url>
-git push -u origin main
-```
+## 当前状态
 
-> 推之前确认 `.gitignore` 兜住 secrets。本仓库本身不该有任何 `.env` 文件。
+| 类别 | 项 | 状态 |
+|---|---|---|
+| P0 骨架 | 目录 + `.gitignore` (secrets / db / pyc / .venv) | ✅ |
+| P0 接入 Codex | `scripts/sync-skills-to-codex.sh` | ✅ |
+| P0 一致性校验 | `scripts/check-agents-sync.sh` (最小版) → P1-18 完整版 | ✅ |
+| P1-15 | `mcp-servers/wiki-search` (3 工具 / 91 docs / FTS5) | ✅ |
+| P1-18 | `check-agents-sync.sh` 完整版 (15 契约 + 9 standards 校验) | ✅ |
+| —— 自测后补 —— | `scripts/check-draft-ownership.sh` (软警告模式) | ✅ |
+| P1-13 | monthly-backup tarball + launchd | ⏸ 挂起 (用户判断当前 GitHub origin + iCloud 已够用) |
+| P1-17 | `mcp-servers/llm-gateway` | ⏸ 挂起 (无外部模型出口需求) |
+| P1-20 | `context-middleware/` | ⏸ 挂起 (反流场景未到痛点) |
+
+---
+
+## 维护原则 (给未来的我)
+
+1. **不放 secret**: `.gitignore` 已兜底 `*.env / secrets/ / *.pem / *.db / state/`; 提交前过 `git status` 看一眼
+2. **不依赖业务仓**: 任何脚本路径假设要写在 README 里, 不要静默 hardcode
+3. **可跑性 > 可读性**: 脚本失败要给出明确退出码 + 修复提示
+4. **改一处改两处**: pre-commit/pre-push 的黑名单要和这里的脚本同步 (见 `obsidian-wiki/_system/security/SECURITY.md`)
+
+---
+
+## 远端
+
+- origin: https://github.com/walker-qiang/personal-tools
+- 配套数据仓: https://github.com/walker-qiang/obsidian-wiki
