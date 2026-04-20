@@ -1,8 +1,8 @@
 # personal-tools
 
 > 个人系统的"工具与肌肉" — MCP servers / 脚本 / 自动化 plist。
-> **数据**在 [obsidian-wiki](https://github.com/walker-qiang/obsidian-wiki); **secrets** 在 `~/.config/personal/secrets/`，永不入 git。
-> 设计依据: `obsidian-wiki/_system/SYSTEM-DESIGN.md` §13–§16。
+> **数据**在 `obsidian-wiki` 仓 (private, 主用户独享); **secrets** 在 `~/.config/personal/secrets/`，永不入 git。
+> 设计依据: `obsidian-wiki/_system/SYSTEM-DESIGN.md` §13–§16 (该文件不公开)。
 
 ---
 
@@ -12,7 +12,7 @@
 |---|---|
 | **是什么** | 一个 macOS / zsh 用户的私人 AI-knowledge-system 配套工具仓: MCP servers + bash 维护脚本 + launchd 模板 |
 | **不是什么** | 不是通用脚手架 / 不是给陌生人开箱即用的 / 不放任何 secret 或 token / 不放业务数据 |
-| **是给谁的** | 主人自己 (主用户 walker-qiang); 公开是因为它要从 obsidian-wiki 链回来, 也方便代码 review。第三方可参考思路, 但**直接 clone 跑大概率不工作** (见下) |
+| **是给谁的** | 主人自己 (主用户 walker-qiang); 仓本身 public 是为了便于代码 review / 未来局部开源 (纯工具代码, 无敏感数据)。第三方可参考思路, 但**直接 clone 跑大概率不工作** (见下) |
 | **路径假设** | 硬编码 `~/obsidian-wiki` / `~/.codex/` / `~/.local/share/personal/`。换路径需要改源 |
 | **依赖** | macOS (launchd 是 macOS 独有); zsh; git; brew + uv (装 wiki-search) |
 
