@@ -29,10 +29,11 @@ from .config import DB_PATH, WIKI_ROOT, wiki_dir
 #   ✓ _system/     — standards, design, changelog (high-value reference)
 #   ✓ skills/      — SKILL.md + references (capability discovery)
 #   ✓ _draft/      — your own drafts (you want to find them)
+#   ✓ tools/       — MCP / tool catalog entries (契约 10)
 #   ✗ raw/         — bulky, low signal-to-noise; raw is source material
 #   ✗ _system/scripts/ — code, not knowledge
 #   ✗ .obsidian/ .git/ etc — tool internals
-SCOPE_INCLUDE = ("wiki", "_system", "skills", "_draft")
+SCOPE_INCLUDE = ("wiki", "_system", "skills", "_draft", "tools")
 SCOPE_INCLUDE_FILES = ("AGENTS.md",)
 SCOPE_EXCLUDE_PATH_FRAGMENTS = ("/scripts/", "/.git/", "/.obsidian/", "/node_modules/")
 
