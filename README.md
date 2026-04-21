@@ -23,7 +23,7 @@
 | 目录 | 内容 | 状态 |
 |---|---|---|
 | `mcp-servers/wiki-search/` | Python MCP server, 把 obsidian-wiki 暴露给 Codex 做全文检索 (SQLite FTS5) | ✅ P1-15 已上线 (v0.1) |
-| `scripts/` | 维护脚本 (`sync-skills-to-codex.sh`, `check-agents-sync.sh`, `check-draft-ownership.sh`) | ✅ 全可跑 |
+| `scripts/` | 维护脚本 (`sync-skills-to-codex.sh`, `check-agents-sync.sh`, `check-draft-ownership.sh`, `start-personal-stack.sh`) | ✅ 全可跑 |
 | `launchd/` | macOS launchd `*.plist` 与 install/uninstall 脚本 | ✅ 骨架在; 当前默认无 job |
 | `mcp-servers/llm-gateway/` | (规划) 出口拦截, 按数据分级决定模型可不可以收到 | ⏸ P1-17 挂起 |
 | `context-middleware/` | (规划) 输入侧上下文路由 | ⏸ P1-20 挂起 |
@@ -63,6 +63,15 @@ WIKI_ROOT=$HOME/obsidian-wiki uv run wiki-search-server  # stdio MCP, Ctrl-C 退
 ```
 
 要把 wiki-search 接入 Codex, 见 `mcp-servers/wiki-search/README.md` 与 `obsidian-wiki/_system/BOOTSTRAP.md` §4.2。
+
+### 一键起 personal-finance + personal-agent + personal-web
+
+前提: 三个仓已在默认路径 `~/personal-finance` `~/personal-agent` `~/personal-web`, 且各自做过首次 `make migrate` / `uv sync` / `npm install` (见 `obsidian-wiki/_system/guides/personal-stack-usage.md`)。
+
+```bash
+chmod +x ~/personal-tools/scripts/start-personal-stack.sh   # 仅首次
+~/personal-tools/scripts/start-personal-stack.sh start    # 或: status | stop | restart | logs
+```
 
 ---
 
