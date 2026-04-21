@@ -27,6 +27,7 @@
 | `launchd/` | macOS launchd `*.plist` 与 install/uninstall 脚本 | ✅ 骨架在; 当前默认无 job |
 | `mcp-servers/llm-gateway/` | (规划) 出口拦截, 按数据分级决定模型可不可以收到 | ⏸ P1-17 挂起 |
 | `context-middleware/` | (规划) 输入侧上下文路由 | ⏸ P1-20 挂起 |
+| `weixin-clip/` | Chrome 扩展 MVP 规格: 微信文章页 **右键** 剪藏到 Obsidian 指定目录 (File System Access, **无**本地 HTTP 服务) | 📋 [README](./weixin-clip/README.md) 已定稿, 代码未写 |
 
 ---
 
