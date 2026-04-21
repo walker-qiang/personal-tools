@@ -19,11 +19,22 @@
         white-space: pre-wrap;
         font-size: 0.95rem;
       }
+      #startBtn {
+        margin-top: 0.75rem;
+        padding: 0.45rem 1rem;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      #startBtn:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
     </style>
   </head>
   <body>
     <h1>weixin-clip</h1>
     <p id="status">准备中…</p>
+    <button type="button" id="startBtn" hidden>开始保存</button>
     <script src="idb-store.js"></script>
     <script src="vendor/turndown.js"></script>
     <script src="clip-core.js"></script>

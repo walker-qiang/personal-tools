@@ -1,6 +1,7 @@
 /* global WeixinClipIdb, WeixinClipCore */
 (function () {
   var statusEl = document.getElementById('status');
+  var startBtn = document.getElementById('startBtn');
 
   function setStatus(t) {
     statusEl.textContent = t;
@@ -53,7 +54,58 @@
     }, ms || 800);
   }
 
-  (async function () {
+  async function runSaveAfterUserClick(payload) {
+    try {
+      var dir = await WeixinClipIdb.getRootDirHandle();
+      if (!dir) {
+        throw new Error('未绑定保存目录');
+      }
+      if (typeof dir.requestPermission === 'function') {
+        var perm = await dir.requestPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') {
+          throw new Error('目录读写权限未授予（请在本窗口的权限提示中选「允许」）。');
+        }
+      }
+
+      setStatus('正在下载图片并写入 Markdown…');
+      var result = await WeixinClipCore.clipArticle(dir, payload);
+      await WeixinClipIdb.clearPendingClipPayload();
+
+      var msg =
+        '已保存 ' +
+        result.mdPath +
+        (result.failedCount ? '（' + result.failedCount + ' 张图失败，见 frontmatter）' : '');
+      await recordClipResult({
+        ok: true,
+        message: msg,
+        mdPath: result.mdPath,
+        failedCount: result.failedCount,
+      });
+      await setClipBadge(true);
+      await notifySafe('weixin-clip', msg);
+      setStatus('完成。\n' + msg + '\n\n本窗口将自动关闭。');
+      await closeSelfSoon(900);
+    } catch (e) {
+      var name = e && e.name;
+      var text = (e && e.message) || String(e);
+      if (name === 'NotAllowedError' || /not allowed|permission|denied/i.test(text)) {
+        text =
+          '写盘仍被拒绝：请到扩展「选项」重新「选择目录…」，再重试剪藏。详情：' + text;
+      }
+      await recordClipResult({ ok: false, message: text, errorName: name });
+      await setClipBadge(false);
+      await notifySafe('weixin-clip', '剪藏失败：' + text);
+      setStatus('失败：\n' + text);
+      console.error('weixin-clip writer', name || '(no name)', text, e);
+      try {
+        await WeixinClipIdb.clearPendingClipPayload();
+      } catch (e2) {}
+      startBtn.disabled = false;
+      await closeSelfSoon(5000);
+    }
+  }
+
+  (async function init() {
     try {
       var payload = await WeixinClipIdb.getPendingClipPayload();
       if (!payload) {
@@ -83,43 +135,24 @@
         return;
       }
 
-      if (typeof dir.requestPermission === 'function') {
-        var perm = await dir.requestPermission({ mode: 'readwrite' });
-        if (perm !== 'granted') {
-          throw new Error('目录读写权限未授予（请在提示中允许，或到扩展选项重新选择目录）。');
-        }
-      }
-
-      setStatus('正在下载图片并写入 Markdown…');
-      var result = await WeixinClipCore.clipArticle(dir, payload);
-      await WeixinClipIdb.clearPendingClipPayload();
-
-      var msg =
-        '已保存 ' +
-        result.mdPath +
-        (result.failedCount ? '（' + result.failedCount + ' 张图失败，见 frontmatter）' : '');
-      await recordClipResult({
-        ok: true,
-        message: msg,
-        mdPath: result.mdPath,
-        failedCount: result.failedCount,
-      });
-      await setClipBadge(true);
-      await notifySafe('weixin-clip', msg);
-      setStatus('完成。\n' + msg + '\n\n本窗口将自动关闭。');
-      await closeSelfSoon(900);
+      setStatus(
+        '正文已取回。按 Chrome 规则：需要你在**本窗口**内再点一次按钮，\n' +
+          '才会把文件写入你已选定的目录（从公众号右键到这里的链路不算「直接手势」）。\n\n' +
+          '请点击「开始保存」。'
+      );
+      startBtn.hidden = false;
+      startBtn.onclick = function () {
+        startBtn.disabled = true;
+        runSaveAfterUserClick(payload);
+      };
     } catch (e) {
-      var text = (e && e.message) || String(e);
       var name = e && e.name;
-      if (name === 'NotAllowedError' || /not allowed|permission|denied/i.test(text)) {
-        text =
-          '无写盘权限或目录授权失效，请到扩展「选项」重新选择目录。详情：' + text;
-      }
+      var text = (e && e.message) || String(e);
       await recordClipResult({ ok: false, message: text, errorName: name });
       await setClipBadge(false);
       await notifySafe('weixin-clip', '剪藏失败：' + text);
       setStatus('失败：\n' + text);
-      console.error('weixin-clip writer', e);
+      console.error('weixin-clip writer init', name || '(no name)', text, e);
       try {
         await WeixinClipIdb.clearPendingClipPayload();
       } catch (e2) {}

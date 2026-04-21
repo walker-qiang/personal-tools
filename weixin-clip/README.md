@@ -1,6 +1,6 @@
 # weixin-clip — 微信公众号文章 → Obsidian（Chrome 扩展 · MVP 规格）
 
-> **状态**: MVP 代码在 `extension/`（Chrome MV3），可「加载已解压的扩展程序」自测。**v0.2.0** 起写盘在 **`writer.html` 弹窗**（window 上下文）完成：Chrome 不允许在 **Service Worker** 里对持久化目录句柄执行 `getFileHandle`（会 `NotAllowedError`）。  
+> **状态**: MVP 代码在 `extension/`（Chrome MV3），可「加载已解压的扩展程序」自测。**v0.2.0+** 写盘在 **`writer.html` 弹窗**完成（SW 内写会 `NotAllowedError`）。**v0.2.1** 起弹窗内需再点一次 **「开始保存」**，以满足 Chrome 对 File System 的 **用户手势** 要求。  
 > **设计约束**: 只用 **Chrome**; **仅右键菜单** 入口; **不**起本地 HTTP 服务; 落盘到 **本机用户通过 File System Access API 授权的目录**（推荐指向 `obsidian-wiki/raw/general/wechat-clips/` 等）。
 
 ---
@@ -10,11 +10,11 @@
 1. 打开 Chrome → **扩展程序** → 打开「开发者模式」→ **加载已解压的扩展程序** → 选择本仓库下的 `weixin-clip/extension/` 目录。  
 2. 在扩展卡片上打开 **扩展程序选项**（或右键扩展图标 → 选项）→ **选择目录…**，授权保存剪藏的文件夹（例如 `…/obsidian-wiki/raw/general/wechat-clips/`）。句柄写入扩展同源 **IndexedDB**，刷新后不必重选。  
 3. 打开任意 `https://mp.weixin.qq.com/s/...` 文章页 → 页面空白处 **右键** → **剪藏到 Obsidian**。  
-4. 会短暂弹出 **「weixin-clip — 正在保存」** 小窗口：在该 **扩展页面** 内完成拉图与写 Markdown（请勿在进度条未走完前关掉）。  
+4. 会弹出 **「weixin-clip — 正在保存」** 小窗口：请先点 **「开始保存」**，再在该窗口内完成拉图与写 Markdown（未点按钮前不会写盘）。  
 5. 另有一项 **重新选择保存目录…** 用于更换目标文件夹。  
 6. 成功/失败由该弹窗内逻辑触发 **系统通知**，并写入选项页 **「最近一次剪藏」**；部分图片失败时，Markdown frontmatter 中会写入 `failed_assets` 列表。
 
-**排障（v0.2.0）**
+**排障（v0.2.1）**
 
 - 若曾装过旧版：IndexedDB 会从 v1 升到 v2（多 `pending` 库），一般无需操作；异常时可移除扩展再「加载已解压」重装。  
 - 剪藏依赖 `chrome.scripting.executeScript` 注入到 **所有子 frame** 并在页面内直接取 DOM；若仍失败，请看通知里的完整错误文案。  
