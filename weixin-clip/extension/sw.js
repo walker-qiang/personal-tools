@@ -1,6 +1,83 @@
 /* global WeixinClipIdb, TurndownService */
 importScripts('idb-store.js', 'vendor/turndown.js');
 
+/**
+ * 注入到页面各 frame 执行（必须自包含，勿引用 SW 外层变量）。
+ * 与已移除的 content.js 逻辑保持一致；变更时请同步两处注释。
+ */
+function injectedExtractPayload() {
+  function pickTitle() {
+    var og = document.querySelector('meta[property="og:title"]');
+    if (og && og.getAttribute('content')) {
+      return og.getAttribute('content').trim();
+    }
+    var act = document.querySelector('#activity-name');
+    if (act && act.textContent) {
+      return act.textContent.trim();
+    }
+    if (document.title) {
+      return document.title.replace(/\s*-\s*微信公众号$/, '').trim();
+    }
+    return 'weixin-article';
+  }
+
+  function resolveImgUrl(raw) {
+    if (!raw) return '';
+    var t = raw.trim();
+    if (!t || t.indexOf('data:') === 0) return '';
+    try {
+      return new URL(t, location.href).href;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function findArticleRoot() {
+    return (
+      document.querySelector('#js_content') ||
+      document.querySelector('#js_article') ||
+      document.querySelector('.rich_media_area_primary_inner') ||
+      document.querySelector('#js_article_content')
+    );
+  }
+
+  function normalizeArticleHtml() {
+    var root = findArticleRoot();
+    if (!root) {
+      return {
+        ok: false,
+        error:
+          '未找到正文容器（已尝试 #js_content / #js_article / .rich_media_area_primary_inner）。可能不是文章页、在特殊子 frame，或 DOM 已变更。',
+      };
+    }
+    var clone = root.cloneNode(true);
+    var imgs = clone.querySelectorAll('img');
+    for (var i = 0; i < imgs.length; i++) {
+      var img = imgs[i];
+      var raw =
+        img.getAttribute('data-src') ||
+        img.getAttribute('data-original') ||
+        img.getAttribute('data-lazy-src') ||
+        img.getAttribute('src');
+      var abs = resolveImgUrl(raw);
+      if (abs) {
+        img.setAttribute('src', abs);
+      }
+      img.removeAttribute('data-src');
+      img.removeAttribute('data-original');
+      img.removeAttribute('data-lazy-src');
+    }
+    return {
+      ok: true,
+      title: pickTitle(),
+      html: clone.outerHTML,
+      pageUrl: location.href,
+    };
+  }
+
+  return normalizeArticleHtml();
+}
+
 var MENU_CLIP = 'weixin-clip-save';
 var MENU_REBIND = 'weixin-clip-rebind';
 
@@ -111,6 +188,28 @@ async function fetchImageBlob(url) {
   return { blob: blob, mime: res.headers.get('content-type') || blob.type || '' };
 }
 
+async function ensureDirWritable(dir) {
+  if (!dir || typeof dir.queryPermission !== 'function') {
+    return;
+  }
+  try {
+    var s = await dir.queryPermission({ mode: 'readwrite' });
+    if (s === 'granted') {
+      return;
+    }
+    if (typeof dir.requestPermission === 'function') {
+      s = await dir.requestPermission({ mode: 'readwrite' });
+      if (s === 'granted') {
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('weixin-clip ensureDirWritable', e);
+    return;
+  }
+  throw new Error('目标目录无读写权限，请打开扩展选项重新选择保存目录。');
+}
+
 async function clipArticle(dirHandle, payload) {
   if (!payload.ok) {
     throw new Error(payload.error || '提取失败');
@@ -193,18 +292,54 @@ async function clipArticle(dirHandle, payload) {
   return { mdPath: mdPath, assetsFolder: assetsFolderName, failedCount: failed.length };
 }
 
+/**
+ * 用 scripting 注入到所有 frame 并直接取返回值，避免「Receiving end does not exist」
+ * 以及正文落在子 frame 时 sendMessage 只打到主 frame 的问题。
+ */
+async function extractArticlePayloadFromTab(tabId) {
+  var results;
+  try {
+    results = await chrome.scripting.executeScript({
+      target: { tabId: tabId, allFrames: true },
+      func: injectedExtractPayload,
+    });
+  } catch (e) {
+    var msg = (e && e.message) || String(e);
+    throw new Error('无法注入页面脚本：' + msg);
+  }
+  if (!results || !results.length) {
+    return { ok: false, error: '脚本注入未返回任何 frame 结果' };
+  }
+  var oks = results.filter(function (x) {
+    return x && x.result && x.result.ok && x.result.html;
+  });
+  if (oks.length) {
+    oks.sort(function (a, b) {
+      return (b.result.html || '').length - (a.result.html || '').length;
+    });
+    return oks[0].result;
+  }
+  var errs = results.filter(function (x) {
+    return x && x.result && x.result.ok === false;
+  });
+  if (errs.length) {
+    return errs[0].result;
+  }
+  return { ok: false, error: '未拿到正文（各 frame 均无有效结果）' };
+}
+
 async function ensureMenus() {
   await chrome.contextMenus.removeAll();
   chrome.contextMenus.create({
     id: MENU_CLIP,
     title: '剪藏到 Obsidian',
-    contexts: ['page'],
+    contexts: ['page', 'frame'],
     documentUrlPatterns: ['https://mp.weixin.qq.com/*'],
   });
   chrome.contextMenus.create({
     id: MENU_REBIND,
     title: '重新选择保存目录…',
-    contexts: ['page'],
+    contexts: ['page', 'frame'],
     documentUrlPatterns: ['https://mp.weixin.qq.com/*'],
   });
 }
@@ -225,19 +360,21 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
       var dir = await WeixinClipIdb.getRootDirHandle();
       if (!dir) {
         chrome.runtime.openOptionsPage();
-        notify('weixin-clip', '请先在扩展选项里选择保存目录（File System Access）。', true);
+        notify('weixin-clip', '请先在扩展选项里选择保存目录（File System Access）。');
         return;
       }
-      var payload = await chrome.tabs.sendMessage(tab.id, { type: 'WEIXIN_CLIP_EXTRACT' });
+      await ensureDirWritable(dir);
+      var payload = await extractArticlePayloadFromTab(tab.id);
       var result = await clipArticle(dir, payload);
       var msg =
         '已保存 ' +
         result.mdPath +
         (result.failedCount ? '（' + result.failedCount + ' 张图失败，见 frontmatter）' : '');
-      notify('weixin-clip', msg, false);
+      notify('weixin-clip', msg);
     } catch (e) {
       var text = (e && e.message) || String(e);
-      notify('weixin-clip', '剪藏失败：' + text, true);
+      notify('weixin-clip', '剪藏失败：' + text);
+      console.error('weixin-clip', e);
     }
   })();
 });

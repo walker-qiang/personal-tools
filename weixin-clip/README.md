@@ -13,6 +13,13 @@
 4. 另有一项 **重新选择保存目录…** 用于更换目标文件夹。  
 5. 成功/失败会通过 **系统通知** 提示；部分图片失败时，Markdown frontmatter 中会写入 `failed_assets` 列表，正文仍保留可访问的远程 `img` 地址。
 
+**排障（v0.1.1）**
+
+- 剪藏依赖 `chrome.scripting.executeScript` 注入到 **所有子 frame** 并在页面内直接取 DOM；若仍失败，请看通知里的完整错误文案。  
+- 若提示目录权限：到扩展 **选项** 重新 **选择目录…**（浏览器可能收回过期的 File System 授权）。  
+- 更新代码后请在 `chrome://extensions` 点该扩展的 **重新加载**，再 **刷新微信文章页** 后重试。  
+- 在 `extension/` 下可跑：`node scripts/verify-manifest.mjs` 做静态自检。
+
 **Manifest 说明**: `host_permissions` 含 `https://*/*`，便于从各 CDN 域名拉取正文图片（自用扩展）；若你介意权限面，可自行收窄并按需补域名。
 
 **最后验证 DOM 选择器**: _待你本地在微信文章页自测后填写日期（`#js_content` / `#activity-name` / `og:title`）。_
@@ -100,7 +107,7 @@ clipper: weixin-clip
 ## 6. 权限清单（Manifest, 草案）
 
 - `host_permissions`: `https://mp.weixin.qq.com/*`  
-- `permissions`: `contextMenus`, `storage`, `notifications`（若用通知）  
+- `permissions`: `contextMenus`, `storage`, `notifications`, `scripting`（右键时注入提取逻辑）  
 - **不**在 MVP 阶段申请 `cookies` 权限, 除非实测无 Cookie 无法拉图再评估。
 
 ---

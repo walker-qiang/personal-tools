@@ -1,22 +1,15 @@
 {
   "manifest_version": 3,
   "name": "weixin-clip",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Clip WeChat public account articles to Markdown + images (Obsidian / local folder).",
   "icons": {
     "48": "icons/icon48.png"
   },
-  "permissions": ["contextMenus", "storage", "notifications"],
+  "permissions": ["contextMenus", "storage", "notifications", "scripting"],
   "host_permissions": ["https://mp.weixin.qq.com/*", "https://*/*"],
   "background": {
     "service_worker": "sw.js"
   },
-  "options_page": "options.html",
-  "content_scripts": [
-    {
-      "matches": ["https://mp.weixin.qq.com/*"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ]
+  "options_page": "options.html"
 }
