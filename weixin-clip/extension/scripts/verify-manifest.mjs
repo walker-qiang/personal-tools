@@ -34,5 +34,13 @@ if (!sw.includes('chrome.scripting.executeScript')) {
 if (!sw.includes('allFrames: true')) {
   throw new Error('sw.js must use allFrames: true');
 }
+if (sw.includes('getFileHandle') || sw.includes('clipArticle')) {
+  throw new Error('sw.js must not perform File System writes (use writer.html + clip-core.js)');
+}
+const writerPath = path.join(extRoot, 'writer.html');
+const corePath = path.join(extRoot, 'clip-core.js');
+if (!fs.existsSync(writerPath) || !fs.existsSync(corePath)) {
+  throw new Error('writer.html and clip-core.js are required');
+}
 
 console.log('verify-manifest: OK', { name: manifest.name, version: manifest.version });
