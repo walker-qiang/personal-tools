@@ -188,28 +188,6 @@ async function fetchImageBlob(url) {
   return { blob: blob, mime: res.headers.get('content-type') || blob.type || '' };
 }
 
-async function ensureDirWritable(dir) {
-  if (!dir || typeof dir.queryPermission !== 'function') {
-    return;
-  }
-  try {
-    var s = await dir.queryPermission({ mode: 'readwrite' });
-    if (s === 'granted') {
-      return;
-    }
-    if (typeof dir.requestPermission === 'function') {
-      s = await dir.requestPermission({ mode: 'readwrite' });
-      if (s === 'granted') {
-        return;
-      }
-    }
-  } catch (e) {
-    console.warn('weixin-clip ensureDirWritable', e);
-    return;
-  }
-  throw new Error('目标目录无读写权限，请打开扩展选项重新选择保存目录。');
-}
-
 async function clipArticle(dirHandle, payload) {
   if (!payload.ok) {
     throw new Error(payload.error || '提取失败');
@@ -363,7 +341,6 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
         notify('weixin-clip', '请先在扩展选项里选择保存目录（File System Access）。');
         return;
       }
-      await ensureDirWritable(dir);
       var payload = await extractArticlePayloadFromTab(tab.id);
       var result = await clipArticle(dir, payload);
       var msg =
@@ -373,6 +350,11 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
       notify('weixin-clip', msg);
     } catch (e) {
       var text = (e && e.message) || String(e);
+      var name = e && e.name;
+      if (name === 'NotAllowedError' || /not allowed|permission|denied/i.test(text)) {
+        text =
+          '无写盘权限或目录授权已失效，请到扩展「选项」里重新点「选择目录…」。原始错误：' + text;
+      }
       notify('weixin-clip', '剪藏失败：' + text);
       console.error('weixin-clip', e);
     }
