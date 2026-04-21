@@ -67,7 +67,104 @@
       return new Promise(function (resolve, reject) {
         var tx = db.transaction(STORE, 'readwrite');
         var st = tx.objectStore(STORE);
-        var r = st.delete('root');
+        st.delete('root');
+        tx.oncomplete = function () {
+          resolve();
+        };
+        tx.onerror = function () {
+          reject(tx.error);
+        };
+      });
+    });
+  }
+
+  function getVaultDirHandle() {
+    return openDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(STORE, 'readonly');
+        var st = tx.objectStore(STORE);
+        var r = st.get('vault');
+        r.onsuccess = function () {
+          resolve(r.result || null);
+        };
+        r.onerror = function () {
+          reject(r.error);
+        };
+      });
+    });
+  }
+
+  function setVaultDirHandle(handle) {
+    return openDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(STORE, 'readwrite');
+        var st = tx.objectStore(STORE);
+        var r = st.put(handle, 'vault');
+        r.onsuccess = function () {
+          resolve();
+        };
+        r.onerror = function () {
+          reject(r.error);
+        };
+      });
+    });
+  }
+
+  function clearVaultDirHandle() {
+    return openDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(STORE, 'readwrite');
+        var st = tx.objectStore(STORE);
+        var r = st.delete('vault');
+        r.onsuccess = function () {
+          resolve();
+        };
+        r.onerror = function () {
+          reject(r.error);
+        };
+      });
+    });
+  }
+
+  function getImagesRootDirHandle() {
+    return openDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(STORE, 'readonly');
+        var st = tx.objectStore(STORE);
+        var r = st.get('images');
+        r.onsuccess = function () {
+          resolve(r.result || null);
+        };
+        r.onerror = function () {
+          reject(r.error);
+        };
+      });
+    });
+  }
+
+  function setImagesRootDirHandle(handle) {
+    return openDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(STORE, 'readwrite');
+        var st = tx.objectStore(STORE);
+        var r = st.put(handle, 'images');
+        r.onsuccess = function () {
+          resolve();
+        };
+        r.onerror = function () {
+          reject(r.error);
+        };
+      });
+    });
+  }
+
+  /** 清除 IndexedDB 中的「图片根」句柄（与 chrome.storage 相对路径二选一）。 */
+  function clearImagesRootDirHandle() {
+    return openDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(STORE, 'readwrite');
+        var st = tx.objectStore(STORE);
+        var r = st.delete('images');
         r.onsuccess = function () {
           resolve();
         };
@@ -130,6 +227,12 @@
     getRootDirHandle: getRootDirHandle,
     setRootDirHandle: setRootDirHandle,
     clearRootDirHandle: clearRootDirHandle,
+    getVaultDirHandle: getVaultDirHandle,
+    setVaultDirHandle: setVaultDirHandle,
+    clearVaultDirHandle: clearVaultDirHandle,
+    getImagesRootDirHandle: getImagesRootDirHandle,
+    setImagesRootDirHandle: setImagesRootDirHandle,
+    clearImagesRootDirHandle: clearImagesRootDirHandle,
     setPendingClipPayload: setPendingClipPayload,
     getPendingClipPayload: getPendingClipPayload,
     clearPendingClipPayload: clearPendingClipPayload,

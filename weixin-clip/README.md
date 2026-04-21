@@ -1,6 +1,6 @@
 # weixin-clip — 微信公众号文章 → Obsidian（Chrome 扩展 · MVP 规格）
 
-> **状态**: MVP 代码在 `extension/`（Chrome MV3），可「加载已解压的扩展程序」自测。**v0.2.0+** 写盘在 **`writer.html` 弹窗**完成（SW 内写会 `NotAllowedError`）。**v0.2.1** 起弹窗内需再点一次 **「开始保存」**，以满足 Chrome 对 File System 的 **用户手势** 要求。  
+> **状态**: MVP 代码在 `extension/`（Chrome MV3），可「加载已解压的扩展程序」自测。**v0.2.0+** 写盘在 **`writer.html` 弹窗**完成（SW 内写会 `NotAllowedError`）。**v0.2.1** 起弹窗内需再点一次 **「开始保存」**，以满足 Chrome 对 File System 的 **用户手势** 要求。**v0.3.x**：先写 `.md` 再拉图、frontmatter 对齐 Obsidian Web Clipper、路径校验与回退。**v0.4.0** 起：支持 **文章目录与图片目录解耦** — 在选项中绑定 **Obsidian 库根** 后，「图片保存目录」可从库根选择（可与文章为兄弟目录）；剪藏时用库根对 `.md` 与图片文件 `resolve`，在笔记中写入 `../…` 相对链接。未绑库根时行为与此前一致（图片须在文章根下或每篇 `_assets`）。**v0.4.1**：`title` 与 `.md` 文件名优先复用页内 **`#activity-name` 大标题**（含中文），不再把标题压成纯 ASCII slug。  
 > **设计约束**: 只用 **Chrome**; **仅右键菜单** 入口; **不**起本地 HTTP 服务; 落盘到 **本机用户通过 File System Access API 授权的目录**（推荐指向 `obsidian-wiki/raw/general/wechat-clips/` 等）。
 
 ---
@@ -81,25 +81,34 @@
 
 ## 5. 输出文件约定
 
-### 5.1 命名
+### 5.1 命名（v0.4.1）
 
-- **basename**: `YYYY-MM-DD-<slug>.md`, 其中 `slug` 由标题转 kebab-case ASCII, 冲突时后缀 `-2`、`-3`。  
-- **资源目录**: 与 md 同级的 `YYYY-MM-DD-<slug>_assets/`（或同级 `assets/` 子目录, 实现前在代码里二选一并写死, 避免混用）。
+- **basename**: `YYYY-MM-DD-<原标题>.md`。标题优先取微信页 `#activity-name`（与文头大标题一致），与 frontmatter 的 `title` 同源；文件名在保留中文的前提下仅去掉各系统非法字符（`/ \\ ? * : | " < >` 等），过长截断至约 120 字；冲突时后缀 `-1`、`-2`。  
+- **资源目录**（v0.4.0）：  
+  - **默认**: 与 md 同级的 `YYYY-MM-DD-<slug>_assets/`，每篇独立。  
+  - **未绑库根 · 统一图片**: 「选择图片目录」从文章根打开；相对路径存 `chrome.storage`，剪藏时从文章根逐级进入子目录写图，Markdown 用 `./…` 链到图片。  
+  - **已绑库根 · 解耦**: 先选 **Obsidian 库根**（须为当前「文章保存目录」的祖先），再选 **图片目录**（从库根打开，可与文章为兄弟目录，如 `…/wechat-clips` 与 `…/_assets`）。图片句柄存 IndexedDB；剪藏时用库根 `resolve` 计算从 `.md` 到图片文件的 **`../` 相对路径**。Writer 会对库根、图片根、文章根分别 `requestPermission`。  
+  - **库根 + 句柄失效**：换「文章目录」若不再位于原库根下，选项页会清除库根与图片绑定并提示重绑。
 
-### 5.2 Markdown 结构（建议）
+### 5.2 Markdown frontmatter（v0.3.0，对齐 Obsidian Web Clipper）
 
 ```yaml
 ---
 title: "<文章标题>"
-source_url: "<当前页 https URL>"
-clipped_at: "<ISO8601 本地时间>"
-clipper: weixin-clip
+source: "<当前页 https URL>"
+author:
+  - "[[<公众号名 / 作者>]]"
+published: "<原文发布时间或留空>"
+created: 2026-04-21
+description: "<og:description 或 meta description>"
+tags:
+  - "参考文档"
 ---
-
-正文…
 ```
 
-- 正文: HTML → Markdown（选用成熟库, 如 Turndown 或等价）; 图片为 **相对路径** `YYYY-MM-DD-<slug>_assets/xxx.png`。
+- 正文: HTML → Markdown（Turndown，已对微信常见 `<section>` 包裹做了归一化）；图片为相对路径，按上一节模式而定。  
+- 提取自微信页：`author` 来自 `meta[name=author]` / `#js_name` / `nickname` 变量；`published` 来自 `article:published_time` / `#publish_time` / `publish_time` 变量；`description` 来自 `meta[name=description]` / `og:description`。  
+- 提取失败的字段会留空但保留键，便于后续手工补。
 
 ### 5.3 失败资源
 
@@ -136,6 +145,8 @@ clipper: weixin-clip
 - [ ] 在任意 `mp.weixin.qq.com/s/...` 文章页右键 → 仅出现本扩展相关项, 其他站点不出现。  
 - [ ] 首次在选项页选目录并成功写入; 重启浏览器后 **无需重新选目录** 仍可保存。  
 - [ ] 生成 md + `_assets` 内图片可在 Obsidian 中正常打开, 相对路径无误。  
+- [ ] 在选项页 **选择图片目录**（选为文章根下的子文件夹）后再剪藏，图片落入该目录、md 中 `./...` 相对路径在 Obsidian 可打开。  
+- [ ] frontmatter 字段齐全：`title / source / author([[...]]) / published / created / description / tags: ["参考文档"]`。  
 - [ ] 断网 / 单图 403 时有通知提示与 `failed_assets` 记录。  
 - [ ] 扩展包内 **无** API key / Cookie 明文落盘。
 

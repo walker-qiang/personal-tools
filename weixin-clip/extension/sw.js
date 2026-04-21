@@ -5,25 +5,73 @@ importScripts('idb-store.js');
  * 注入到页面各 frame 执行（必须自包含，勿引用 SW 外层变量）。
  */
 function injectedExtractPayload() {
+  function metaContent(sel) {
+    var el = document.querySelector(sel);
+    var v = el && el.getAttribute('content');
+    return v ? v.trim() : '';
+  }
+
+  /** 与正文顶部大标题一致，优先于 og:title（后者常带推广语或与列表不一致）。 */
   function pickTitle() {
-    var og = document.querySelector('meta[property="og:title"]');
-    if (og && og.getAttribute('content')) {
-      return og.getAttribute('content').trim();
-    }
     var act = document.querySelector('#activity-name');
     if (act && act.textContent) {
       return act.textContent.trim();
     }
+    var og = metaContent('meta[property="og:title"]');
+    if (og) return og;
     if (document.title) {
       return document.title.replace(/\s*-\s*微信公众号$/, '').trim();
     }
     return 'weixin-article';
   }
 
+  function pickAuthor() {
+    var byMeta = metaContent('meta[name="author"]');
+    if (byMeta) return byMeta;
+    var nickEl =
+      document.querySelector('#js_name') ||
+      document.querySelector('.profile_nickname') ||
+      document.querySelector('.rich_media_meta_nickname a') ||
+      document.querySelector('a[id="js_name"]');
+    if (nickEl && nickEl.textContent) {
+      return nickEl.textContent.trim();
+    }
+    try {
+      var t = document.documentElement.outerHTML;
+      var m = t.match(/var\s+nickname\s*=\s*(?:htmlDecode\()?["']([^"']+)["']/);
+      if (m && m[1]) return m[1].trim();
+    } catch (e) {}
+    return '';
+  }
+
+  function pickDescription() {
+    return (
+      metaContent('meta[name="description"]') ||
+      metaContent('meta[property="og:description"]') ||
+      ''
+    );
+  }
+
+  function pickPublished() {
+    var meta = metaContent('meta[property="article:published_time"]');
+    if (meta) return meta;
+    var el = document.querySelector('#publish_time');
+    if (el && el.textContent) {
+      return el.textContent.trim();
+    }
+    try {
+      var t = document.documentElement.outerHTML;
+      var m = t.match(/var\s+publish_time\s*=\s*["']([^"']+)["']/);
+      if (m && m[1]) return m[1].trim();
+    } catch (e) {}
+    return '';
+  }
+
   function resolveImgUrl(raw) {
     if (!raw) return '';
     var t = raw.trim();
-    if (!t || t.indexOf('data:') === 0) return '';
+    if (!t) return '';
+    if (t.indexOf('data:') === 0) return '';
     try {
       return new URL(t, location.href).href;
     } catch (e) {
@@ -53,22 +101,28 @@ function injectedExtractPayload() {
     var imgs = clone.querySelectorAll('img');
     for (var i = 0; i < imgs.length; i++) {
       var img = imgs[i];
-      var raw =
+      var lazy =
         img.getAttribute('data-src') ||
         img.getAttribute('data-original') ||
-        img.getAttribute('data-lazy-src') ||
-        img.getAttribute('src');
-      var abs = resolveImgUrl(raw);
+        img.getAttribute('data-lazy-src');
+      var current = img.getAttribute('src') || '';
+      var pickRaw = lazy && lazy.indexOf('data:') !== 0 ? lazy : current;
+      var abs = resolveImgUrl(pickRaw);
       if (abs) {
         img.setAttribute('src', abs);
+        img.removeAttribute('data-src');
+        img.removeAttribute('data-original');
+        img.removeAttribute('data-lazy-src');
+      } else {
+        img.parentNode && img.parentNode.removeChild(img);
       }
-      img.removeAttribute('data-src');
-      img.removeAttribute('data-original');
-      img.removeAttribute('data-lazy-src');
     }
     return {
       ok: true,
       title: pickTitle(),
+      author: pickAuthor(),
+      description: pickDescription(),
+      published: pickPublished(),
       html: clone.outerHTML,
       pageUrl: location.href,
     };

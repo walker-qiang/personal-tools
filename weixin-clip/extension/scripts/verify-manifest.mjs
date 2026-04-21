@@ -43,4 +43,52 @@ if (!fs.existsSync(writerPath) || !fs.existsSync(corePath)) {
   throw new Error('writer.html and clip-core.js are required');
 }
 
+const core = fs.readFileSync(corePath, 'utf8');
+const idb = fs.readFileSync(path.join(extRoot, 'idb-store.js'), 'utf8');
+for (const needle of [
+  'function clipArticle',
+  'sanitizeFileBaseForMd',
+  'clipImageMode',
+  'function buildImageWriteContext',
+  'markdownRelViaVault',
+  'function getOrCreateNestedDir',
+  'writeMarkdownFile',
+  'normalizeClipMode',
+  '"参考文档"',
+]) {
+  if (!core.includes(needle)) {
+    throw new Error('clip-core.js missing: ' + needle);
+  }
+}
+if (
+  !idb.includes('getVaultDirHandle') ||
+  !idb.includes('getImagesRootDirHandle') ||
+  !idb.includes('clearImagesRootDirHandle')
+) {
+  throw new Error('idb-store.js must expose vault + images directory handles');
+}
+if (!sw.includes('pickAuthor')) {
+  throw new Error('sw.js must extract author metadata');
+}
+if (!sw.includes('#activity-name') || !sw.includes('pickTitle')) {
+  throw new Error('sw.js must pick article title from page (activity-name / pickTitle)');
+}
+
+const optsHtml = fs.readFileSync(path.join(extRoot, 'options.html'), 'utf8');
+const optsJs = fs.readFileSync(path.join(extRoot, 'options.js'), 'utf8');
+if (!optsHtml.includes('id="pickImages"') || !optsJs.includes('pickImages')) {
+  throw new Error('options page must expose pickImages for image directory');
+}
+if (!optsHtml.includes('id="pickVault"') || !optsJs.includes('startIn: vault')) {
+  throw new Error('options must support vault root + startIn: vault for decoupled images');
+}
+if (!optsJs.includes('startIn: article') || !optsJs.includes('clipImageRelPath')) {
+  throw new Error('options.js must use startIn: article and persist clipImageRelPath');
+}
+
+const writerJs = fs.readFileSync(path.join(extRoot, 'writer.js'), 'utf8');
+if (!writerJs.includes('clipImageMode') || !writerJs.includes('vaultDirHandle')) {
+  throw new Error('writer.js must pass clipImageMode and vaultDirHandle');
+}
+
 console.log('verify-manifest: OK', { name: manifest.name, version: manifest.version });

@@ -54,32 +54,65 @@
     }, ms || 800);
   }
 
+  async function requestDirWriteIfSupported(dir, label) {
+    if (!dir || typeof dir.requestPermission !== 'function') return;
+    var perm = await dir.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      throw new Error(
+        (label || '目录') + ' 读写权限未授予（请在本窗口权限提示中选「允许」）。'
+      );
+    }
+  }
+
   async function runSaveAfterUserClick(payload) {
     try {
       var dir = await WeixinClipIdb.getRootDirHandle();
       if (!dir) {
         throw new Error('未绑定保存目录');
       }
-      if (typeof dir.requestPermission === 'function') {
-        var perm = await dir.requestPermission({ mode: 'readwrite' });
-        if (perm !== 'granted') {
-          throw new Error('目录读写权限未授予（请在本窗口的权限提示中选「允许」）。');
-        }
+      await requestDirWriteIfSupported(dir, '文章保存目录');
+
+      var vault = await WeixinClipIdb.getVaultDirHandle();
+      var imgRoot = await WeixinClipIdb.getImagesRootDirHandle();
+      if (vault) {
+        await requestDirWriteIfSupported(vault, 'Obsidian 库根');
+      }
+      if (imgRoot) {
+        await requestDirWriteIfSupported(imgRoot, '图片保存目录');
       }
 
       setStatus('正在下载图片并写入 Markdown…');
-      var result = await WeixinClipCore.clipArticle(dir, payload);
+      var imgCfg = await chrome.storage.local.get(['clipImageMode', 'clipImageRelPath']);
+      var modeIn =
+        typeof imgCfg.clipImageMode === 'string' ? imgCfg.clipImageMode : 'perArticle';
+      var relIn =
+        typeof imgCfg.clipImageRelPath === 'string' ? imgCfg.clipImageRelPath : '';
+      var result = await WeixinClipCore.clipArticle(dir, payload, {
+        clipImageMode: modeIn,
+        clipImageRelPath: relIn,
+        vaultDirHandle: vault || null,
+        imageDirHandle: imgRoot || null,
+      });
       await WeixinClipIdb.clearPendingClipPayload();
 
       var msg =
         '已保存 ' +
         result.mdPath +
-        (result.failedCount ? '（' + result.failedCount + ' 张图失败，见 frontmatter）' : '');
+        '（图片：' +
+        result.imagesLocation +
+        (result.sharedImages ? '，统一目录' : '，本篇目录') +
+        (result.imageLinkKind ? '，链接:' + result.imageLinkKind : '') +
+        '）' +
+        (result.failedCount ? '；' + result.failedCount + ' 张图失败，见 frontmatter' : '');
       await recordClipResult({
         ok: true,
         message: msg,
         mdPath: result.mdPath,
         failedCount: result.failedCount,
+        clipModeUsed: result.clipModeUsed,
+        imageRelUsed: result.imageRelUsed,
+        imagesLocation: result.imagesLocation,
+        imageLinkKind: result.imageLinkKind,
       });
       await setClipBadge(true);
       await notifySafe('weixin-clip', msg);
@@ -90,7 +123,7 @@
       var text = (e && e.message) || String(e);
       if (name === 'NotAllowedError' || /not allowed|permission|denied/i.test(text)) {
         text =
-          '写盘仍被拒绝：请到扩展「选项」重新「选择目录…」，再重试剪藏。详情：' + text;
+          '写盘仍被拒绝：请到扩展「选项」重新绑定目录，再重试剪藏。详情：' + text;
       }
       await recordClipResult({ ok: false, message: text, errorName: name });
       await setClipBadge(false);

@@ -48,7 +48,7 @@
     </style>
   </head>
   <body>
-    <h1>weixin-clip — 保存目录</h1>
+    <h1>weixin-clip — 目录设置</h1>
     <section class="last-clip" aria-labelledby="last-clip-h">
       <h2 id="last-clip-h">最近一次剪藏</h2>
       <p class="hint">
@@ -59,15 +59,40 @@
       <pre id="last-clip" class="status"></pre>
     </section>
     <p class="hint">
-      使用 File System Access API 选择本机文件夹（例如
-      <code>obsidian-wiki/raw/general/wechat-clips</code>）。句柄保存在本扩展的
-      IndexedDB 中，刷新后无需重选。
+      使用 File System Access API 选择<strong>文章 .md 落盘目录</strong>（例如
+      <code>obsidian-wiki/raw/general/wechat-clips</code>）。句柄保存在 IndexedDB，刷新后无需重选。
     </p>
     <p>
-      <button type="button" id="pick">选择目录…</button>
-      <button type="button" id="clear">清除已绑定目录</button>
+      <button type="button" id="pick">选择文章目录…</button>
+      <button type="button" id="clear">清除文章目录</button>
     </p>
     <p id="status" class="status" aria-live="polite"></p>
+
+    <h2 style="font-size: 1.05rem; margin-top: 1.5rem">Obsidian 库根（可选 · 用于解耦）</h2>
+    <p class="hint">
+      若希望<strong>文章目录</strong>与<strong>图片目录</strong>互不包含（例如文章在
+      <code>raw/general/wechat-clips</code>、图片在 <code>raw/general/_assets</code>），请先选<strong>整个
+      Obsidian 库的根文件夹</strong>（能同时包含上述两者的祖先）。扩展会用库根对文章、图片路径做
+      <code>resolve</code>，在 Markdown 里写入 <code>../…</code> 相对链接。<br />
+      未绑库根时：图片只能选在「文章目录」之下（或沿用每篇 <code>&lt;base&gt;_assets/</code>）。
+    </p>
+    <p>
+      <button type="button" id="pickVault">选择 Obsidian 库根…</button>
+      <button type="button" id="clearVault">清除库根与解耦图片</button>
+    </p>
+    <p id="vaultStatus" class="status" aria-live="polite"></p>
+
+    <h2 style="font-size: 1.05rem; margin-top: 1.5rem">图片保存目录</h2>
+    <p class="hint">
+      <strong>已绑库根</strong>：选图时从<strong>库根</strong>打开选择器，可选与文章目录为<strong>兄弟文件夹</strong>，实现解耦。<br />
+      <strong>未绑库根</strong>：从文章目录打开选择器，图片须在文章根之下；或选「与文章同目录」；否则用每篇
+      <code>&lt;base&gt;_assets/</code>。
+    </p>
+    <p>
+      <button type="button" id="pickImages">选择图片目录…</button>
+      <button type="button" id="clearImages">清除图片目录</button>
+    </p>
+    <p id="imageDirStatus" class="status" aria-live="polite"></p>
     <script src="idb-store.js"></script>
     <script src="options.js"></script>
   </body>
