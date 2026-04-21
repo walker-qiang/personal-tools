@@ -34,10 +34,30 @@
         padding: 0.1rem 0.35rem;
         border-radius: 4px;
       }
+      .last-clip {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fafafa;
+      }
+      .last-clip h2 {
+        font-size: 1rem;
+        margin: 0 0 0.5rem;
+      }
     </style>
   </head>
   <body>
     <h1>weixin-clip — 保存目录</h1>
+    <section class="last-clip" aria-labelledby="last-clip-h">
+      <h2 id="last-clip-h">最近一次剪藏</h2>
+      <p class="hint">
+        若系统关闭了 Chrome 通知、或剪藏时无提示，请看这里（由扩展写入
+        <code>chrome.storage</code>）。工具栏上的扩展图标角标
+        <strong>OK</strong> / <strong>!</strong> 也表示最近一次成败。
+      </p>
+      <pre id="last-clip" class="status"></pre>
+    </section>
     <p class="hint">
       使用 File System Access API 选择本机文件夹（例如
       <code>obsidian-wiki/raw/general/wechat-clips</code>）。句柄保存在本扩展的

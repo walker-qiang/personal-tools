@@ -13,9 +13,10 @@
 4. 另有一项 **重新选择保存目录…** 用于更换目标文件夹。  
 5. 成功/失败会通过 **系统通知** 提示；部分图片失败时，Markdown frontmatter 中会写入 `failed_assets` 列表，正文仍保留可访问的远程 `img` 地址。
 
-**排障（v0.1.2）**
+**排障（v0.1.3）**
 
 - 剪藏依赖 `chrome.scripting.executeScript` 注入到 **所有子 frame** 并在页面内直接取 DOM；若仍失败，请看通知里的完整错误文案。  
+- **若既无通知也无文件**：打开扩展 **选项**，查看 **「最近一次剪藏」**（写入 `chrome.storage`）；并把扩展 **固定到工具栏** 后看角标 **OK** / **!**。v0.1.3 起右键剪藏会 **返回 Promise** 以延长 Service Worker 寿命，避免任务写到一半被挂起。  
 - 若提示写盘 / `NotAllowedError`：到扩展 **选项** 重新 **选择目录…**（持久化句柄在部分环境下需在选项页用户手势下重新确认）。  
 - 更新代码后请在 `chrome://extensions` 点该扩展的 **重新加载**，再 **刷新微信文章页** 后重试。  
 - 在 `extension/` 下可跑：`node scripts/verify-manifest.mjs` 做静态自检。

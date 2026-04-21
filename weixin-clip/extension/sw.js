@@ -81,13 +81,43 @@ function injectedExtractPayload() {
 var MENU_CLIP = 'weixin-clip-save';
 var MENU_REBIND = 'weixin-clip-rebind';
 
-function notify(title, message) {
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('icons/icon48.png'),
-    title: title,
-    message: (message || '').slice(0, 250),
-    priority: 2,
+function notifySafe(title, message) {
+  return new Promise(function (resolve) {
+    try {
+      chrome.notifications.create(
+        {
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/icon48.png'),
+          title: title,
+          message: (message || '').slice(0, 250),
+          priority: 2,
+        },
+        function () {
+          if (chrome.runtime.lastError) {
+            console.warn('weixin-clip notify', chrome.runtime.lastError.message);
+          }
+          resolve();
+        }
+      );
+    } catch (e) {
+      console.warn('weixin-clip notify', e);
+      resolve();
+    }
+  });
+}
+
+function recordClipResult(payload) {
+  return chrome.storage.local.set({
+    lastClipResult: Object.assign({ at: Date.now() }, payload),
+  });
+}
+
+function setClipBadge(ok) {
+  return Promise.all([
+    chrome.action.setBadgeText({ text: ok ? 'OK' : '!' }),
+    chrome.action.setBadgeBackgroundColor({ color: ok ? '#22863a' : '#cb2431' }),
+  ]).catch(function (e) {
+    console.warn('weixin-clip badge', e);
   });
 }
 
@@ -326,19 +356,25 @@ chrome.runtime.onInstalled.addListener(ensureMenus);
 chrome.runtime.onStartup.addListener(ensureMenus);
 
 chrome.contextMenus.onClicked.addListener(function (info, tab) {
-  if (!tab || !tab.id) return;
+  if (!tab || !tab.id) {
+    return Promise.resolve();
+  }
   if (info.menuItemId === MENU_REBIND) {
     chrome.runtime.openOptionsPage();
-    return;
+    return Promise.resolve();
   }
-  if (info.menuItemId !== MENU_CLIP) return;
+  if (info.menuItemId !== MENU_CLIP) {
+    return Promise.resolve();
+  }
 
-  (async function () {
+  return (async function () {
     try {
       var dir = await WeixinClipIdb.getRootDirHandle();
       if (!dir) {
+        await recordClipResult({ ok: false, message: '未绑定保存目录' });
+        await setClipBadge(false);
         chrome.runtime.openOptionsPage();
-        notify('weixin-clip', '请先在扩展选项里选择保存目录（File System Access）。');
+        await notifySafe('weixin-clip', '请先在扩展选项里选择保存目录（File System Access）。');
         return;
       }
       var payload = await extractArticlePayloadFromTab(tab.id);
@@ -347,7 +383,14 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
         '已保存 ' +
         result.mdPath +
         (result.failedCount ? '（' + result.failedCount + ' 张图失败，见 frontmatter）' : '');
-      notify('weixin-clip', msg);
+      await recordClipResult({
+        ok: true,
+        message: msg,
+        mdPath: result.mdPath,
+        failedCount: result.failedCount,
+      });
+      await setClipBadge(true);
+      await notifySafe('weixin-clip', msg);
     } catch (e) {
       var text = (e && e.message) || String(e);
       var name = e && e.name;
@@ -355,7 +398,9 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
         text =
           '无写盘权限或目录授权已失效，请到扩展「选项」里重新点「选择目录…」。原始错误：' + text;
       }
-      notify('weixin-clip', '剪藏失败：' + text);
+      await recordClipResult({ ok: false, message: text, errorName: name });
+      await setClipBadge(false);
+      await notifySafe('weixin-clip', '剪藏失败：' + text);
       console.error('weixin-clip', e);
     }
   })();

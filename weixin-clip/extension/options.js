@@ -1,10 +1,34 @@
 (function () {
   var statusEl = document.getElementById('status');
+  var lastClipEl = document.getElementById('last-clip');
   var pickBtn = document.getElementById('pick');
   var clearBtn = document.getElementById('clear');
 
   function setStatus(text) {
     statusEl.textContent = text;
+  }
+
+  async function refreshLastClip() {
+    if (!lastClipEl) return;
+    try {
+      var data = await chrome.storage.local.get('lastClipResult');
+      var r = data.lastClipResult;
+      if (!r) {
+        lastClipEl.textContent = '尚无记录。剪藏一次后这里会显示结果与时间。';
+        return;
+      }
+      var lines = [
+        '时间: ' + new Date(r.at).toLocaleString(),
+        '结果: ' + (r.ok ? '成功' : '失败'),
+        '说明: ' + (r.message || '(无)'),
+      ];
+      if (r.mdPath) lines.push('文件: ' + r.mdPath);
+      if (typeof r.failedCount === 'number') lines.push('失败图片数: ' + r.failedCount);
+      if (r.errorName) lines.push('错误类型: ' + r.errorName);
+      lastClipEl.textContent = lines.join('\n');
+    } catch (e) {
+      lastClipEl.textContent = '读取剪藏记录失败：' + ((e && e.message) || String(e));
+    }
   }
 
   async function refreshStatus() {
@@ -51,5 +75,12 @@
     }
   });
 
+  chrome.storage.onChanged.addListener(function (changes, area) {
+    if (area === 'local' && changes.lastClipResult) {
+      refreshLastClip();
+    }
+  });
+
   refreshStatus();
+  refreshLastClip();
 })();
