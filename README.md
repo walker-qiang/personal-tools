@@ -23,11 +23,11 @@
 | 目录 | 内容 | 状态 |
 |---|---|---|
 | `mcp-servers/wiki-search/` | Python MCP server, 把 obsidian-wiki 暴露给 Codex 做全文检索 (SQLite FTS5) | ✅ P1-15 已上线 (v0.1) |
-| `scripts/` | 维护脚本 (`sync-skills-to-codex.sh`, `check-agents-sync.sh`, `check-draft-ownership.sh`, `start-personal-stack.sh`) | ✅ 全可跑 |
+| `scripts/` | 维护脚本 (`sync-skills-to-codex.sh`, `check-agents-sync.sh`, `check-draft-ownership.sh`, `start-personal-stack.sh`, `weekly-digest.py`) | ✅ 全可跑 |
 | `launchd/` | macOS launchd `*.plist` 与 install/uninstall 脚本 | ✅ 骨架在; 当前默认无 job |
 | `mcp-servers/llm-gateway/` | (规划) 出口拦截, 按数据分级决定模型可不可以收到 | ⏸ P1-17 挂起 |
 | `context-middleware/` | (规划) 输入侧上下文路由 | ⏸ P1-20 挂起 |
-| `weixin-clip/` | Chrome 扩展 MVP 规格: 微信文章页 **右键** 剪藏到 Obsidian 指定目录 (File System Access, **无**本地 HTTP 服务) | 📋 [README](./weixin-clip/README.md) 已定稿, 代码未写 |
+| `weixin-clip/` | Chrome MV3 扩展: 微信文章页 **右键** 剪藏到 Obsidian 指定目录 (File System Access, **无**本地 HTTP 服务) | ✅ MVP 已可自测 (`extension/`, 当前 `v0.4.1`) |
 
 ---
 
@@ -74,6 +74,15 @@ chmod +x ~/personal-tools/scripts/start-personal-stack.sh   # 仅首次
 ~/personal-tools/scripts/start-personal-stack.sh start    # 或: status | stop | restart | logs
 ```
 
+### 试用 weixin-clip Chrome 扩展
+
+```text
+Chrome → 扩展程序 → 开发者模式 → 加载已解压的扩展程序
+选择 ~/personal-tools/weixin-clip/extension/
+```
+
+然后在扩展 **选项页** 里先绑定保存目录, 再到 `https://mp.weixin.qq.com/s/...` 文章页空白处右键 **「剪藏到 Obsidian」**。详细说明见 `weixin-clip/README.md`。
+
 ---
 
 ## 当前状态
@@ -86,6 +95,8 @@ chmod +x ~/personal-tools/scripts/start-personal-stack.sh   # 仅首次
 | P1-15 | `mcp-servers/wiki-search` (3 工具 / 91 docs / FTS5) | ✅ |
 | P1-18 | `check-agents-sync.sh` 完整版 (15 契约 + 9 standards 校验) | ✅ |
 | —— 自测后补 —— | `scripts/check-draft-ownership.sh` (软警告模式) | ✅ |
+| —— 周记辅助 —— | `scripts/weekly-digest.py` (汇总最近一周 wiki + tools 事实变动, 输出 markdown/json) | ✅ |
+| v0.4.1 | `weixin-clip` Chrome 扩展 (右键剪藏微信文章, 目录授权, Markdown + 图片落盘) | ✅ |
 | P1-13 | monthly-backup tarball + launchd | ⏸ 挂起 (用户判断当前 GitHub origin + iCloud 已够用) |
 | P1-17 | `mcp-servers/llm-gateway` | ⏸ 挂起 (无外部模型出口需求) |
 | P1-20 | `context-middleware/` | ⏸ 挂起 (反流场景未到痛点) |

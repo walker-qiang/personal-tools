@@ -30,28 +30,51 @@ log = logging.getLogger(__name__)
 mcp = FastMCP("wiki-search")
 
 
+def _has_required_schema(db: sqlite3.Connection) -> bool:
+    rows = db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('documents_fts', 'index_meta')"
+    ).fetchall()
+    return {name for (name,) in rows} == {"documents_fts", "index_meta"}
+
+
 def _ensure_db() -> sqlite3.Connection:
-    """Open db, build index if missing."""
+    """Open db and ensure the search schema exists."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     fresh = not DB_PATH.exists()
     db = sqlite3.connect(DB_PATH)
+    needs_build = fresh or not _has_required_schema(db)
+    if not needs_build:
+        return db
+
+    if not WIKI_ROOT.is_dir():
+        db.close()
+        raise RuntimeError(
+            f"wiki-search index unavailable: WIKI_ROOT not found: {WIKI_ROOT}"
+        )
+
     if fresh:
         log.info("no index found, building from %s", WIKI_ROOT)
-        if not WIKI_ROOT.is_dir():
-            log.error("WIKI_ROOT not found: %s", WIKI_ROOT)
-            return db
-        n, skipped = build_index(db, WIKI_ROOT)
-        log.info("built index: %d docs, %d skipped", n, skipped)
+    else:
+        log.warning("index schema missing or incomplete, rebuilding from %s", WIKI_ROOT)
+    n, skipped = build_index(db, WIKI_ROOT)
+    log.info("built index: %d docs, %d skipped", n, skipped)
     return db
 
 
 _db: sqlite3.Connection | None = None
+_db_error: str | None = None
 
 
 def _db_conn() -> sqlite3.Connection:
-    global _db
+    global _db, _db_error
+    if _db_error is not None:
+        raise RuntimeError(_db_error)
     if _db is None:
-        _db = _ensure_db()
+        try:
+            _db = _ensure_db()
+        except Exception as e:
+            _db_error = str(e)
+            raise RuntimeError(_db_error) from e
     return _db
 
 
@@ -109,7 +132,15 @@ def search_wiki(query: str, top_k: int = 5) -> dict:
     elif top_k > 20:
         top_k = 20
 
-    db = _db_conn()
+    try:
+        db = _db_conn()
+    except RuntimeError as e:
+        return {
+            "results": [],
+            "query_used": "",
+            "total_indexed": 0,
+            "error": str(e),
+        }
     fts_q = _sanitize_query(query)
 
     if not fts_q:
@@ -188,16 +219,30 @@ def get_wiki_page(path: str) -> dict:
 @mcp.tool()
 def wiki_index_status() -> dict:
     """Diagnostic: where the index lives, when it was built, how many docs."""
-    db = _db_conn()
+    try:
+        db = _db_conn()
+    except RuntimeError as e:
+        return {
+            "db_path": str(DB_PATH),
+            "wiki_root_env": str(WIKI_ROOT),
+            "available": False,
+            "error": str(e),
+        }
     rows = db.execute("SELECT key, value FROM index_meta ORDER BY key").fetchall()
     meta = {k: v for k, v in rows}
     meta["db_path"] = str(DB_PATH)
     meta["wiki_root_env"] = str(WIKI_ROOT)
+    meta["available"] = True
     return meta
 
 
 def main() -> int:
     log.info("starting wiki-search MCP server (WIKI_ROOT=%s)", WIKI_ROOT)
+    try:
+        _db_conn()
+    except RuntimeError as e:
+        log.error("startup failed: %s", e)
+        return 2
     mcp.run()
     return 0
 

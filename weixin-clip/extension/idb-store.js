@@ -30,6 +30,14 @@
     });
   }
 
+  function pendingKey(jobId) {
+    var id = String(jobId || '').trim();
+    if (!id) {
+      throw new Error('pending clip jobId is required');
+    }
+    return 'clip:' + id;
+  }
+
   function getRootDirHandle() {
     return openDb().then(function (db) {
       return new Promise(function (resolve, reject) {
@@ -175,12 +183,12 @@
     });
   }
 
-  function setPendingClipPayload(payload) {
+  function setPendingClipPayload(jobId, payload) {
     return openDb().then(function (db) {
       return new Promise(function (resolve, reject) {
         var tx = db.transaction(PENDING, 'readwrite');
         var st = tx.objectStore(PENDING);
-        var r = st.put(payload, 'clip');
+        var r = st.put(payload, pendingKey(jobId));
         r.onsuccess = function () {
           resolve();
         };
@@ -191,12 +199,12 @@
     });
   }
 
-  function getPendingClipPayload() {
+  function getPendingClipPayload(jobId) {
     return openDb().then(function (db) {
       return new Promise(function (resolve, reject) {
         var tx = db.transaction(PENDING, 'readonly');
         var st = tx.objectStore(PENDING);
-        var r = st.get('clip');
+        var r = st.get(pendingKey(jobId));
         r.onsuccess = function () {
           resolve(r.result != null ? r.result : null);
         };
@@ -207,12 +215,12 @@
     });
   }
 
-  function clearPendingClipPayload() {
+  function clearPendingClipPayload(jobId) {
     return openDb().then(function (db) {
       return new Promise(function (resolve, reject) {
         var tx = db.transaction(PENDING, 'readwrite');
         var st = tx.objectStore(PENDING);
-        var r = st.delete('clip');
+        var r = st.delete(pendingKey(jobId));
         r.onsuccess = function () {
           resolve();
         };

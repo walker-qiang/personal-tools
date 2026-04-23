@@ -7,6 +7,11 @@
     statusEl.textContent = t;
   }
 
+  function getPendingJobId() {
+    var params = new URLSearchParams(location.search || '');
+    return (params.get('job') || '').trim();
+  }
+
   function notifySafe(title, message) {
     return new Promise(function (resolve) {
       try {
@@ -64,7 +69,7 @@
     }
   }
 
-  async function runSaveAfterUserClick(payload) {
+  async function runSaveAfterUserClick(jobId, payload) {
     try {
       var dir = await WeixinClipIdb.getRootDirHandle();
       if (!dir) {
@@ -93,7 +98,7 @@
         vaultDirHandle: vault || null,
         imageDirHandle: imgRoot || null,
       });
-      await WeixinClipIdb.clearPendingClipPayload();
+      await WeixinClipIdb.clearPendingClipPayload(jobId);
 
       var msg =
         '已保存 ' +
@@ -131,7 +136,7 @@
       setStatus('失败：\n' + text);
       console.error('weixin-clip writer', name || '(no name)', text, e);
       try {
-        await WeixinClipIdb.clearPendingClipPayload();
+        await WeixinClipIdb.clearPendingClipPayload(jobId);
       } catch (e2) {}
       startBtn.disabled = false;
       await closeSelfSoon(5000);
@@ -140,9 +145,16 @@
 
   (async function init() {
     try {
-      var payload = await WeixinClipIdb.getPendingClipPayload();
+      var jobId = getPendingJobId();
+      if (!jobId) {
+        setStatus('缺少待处理任务编号（可关闭此窗口）。');
+        await closeSelfSoon(1200);
+        return;
+      }
+
+      var payload = await WeixinClipIdb.getPendingClipPayload(jobId);
       if (!payload) {
-        setStatus('没有待处理的剪藏任务（可关闭此窗口）。');
+        setStatus('没有找到这个窗口对应的待处理剪藏任务（可能已完成或被清理）。');
         await closeSelfSoon(1200);
         return;
       }
@@ -152,7 +164,7 @@
         await setClipBadge(false);
         await notifySafe('weixin-clip', '剪藏失败：' + errMsg);
         setStatus(errMsg);
-        await WeixinClipIdb.clearPendingClipPayload();
+        await WeixinClipIdb.clearPendingClipPayload(jobId);
         await closeSelfSoon(2500);
         return;
       }
@@ -163,7 +175,7 @@
         await setClipBadge(false);
         setStatus('未绑定目录，请打开扩展选项选择文件夹。');
         await notifySafe('weixin-clip', '未绑定保存目录。');
-        await WeixinClipIdb.clearPendingClipPayload();
+        await WeixinClipIdb.clearPendingClipPayload(jobId);
         await closeSelfSoon(2500);
         return;
       }
@@ -176,7 +188,7 @@
       startBtn.hidden = false;
       startBtn.onclick = function () {
         startBtn.disabled = true;
-        runSaveAfterUserClick(payload);
+        runSaveAfterUserClick(jobId, payload);
       };
     } catch (e) {
       var name = e && e.name;
@@ -187,7 +199,7 @@
       setStatus('失败：\n' + text);
       console.error('weixin-clip writer init', name || '(no name)', text, e);
       try {
-        await WeixinClipIdb.clearPendingClipPayload();
+        await WeixinClipIdb.clearPendingClipPayload(jobId);
       } catch (e2) {}
       await closeSelfSoon(4000);
     }

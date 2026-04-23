@@ -80,6 +80,7 @@ kill_pidfile() {
 
 cmd_start() {
   mkdir -p "$STATE_DIR"
+  local failed_services=()
 
   if ! [[ -d "$FINANCE_ROOT" ]]; then
     echo "✗ FINANCE_ROOT not a directory: $FINANCE_ROOT" >&2
@@ -114,6 +115,7 @@ cmd_start() {
       echo "  ✓ finance healthy"
     else
       echo "  ✗ finance did not become healthy in time; see $FINANCE_LOG" >&2
+      failed_services+=("finance")
     fi
   fi
 
@@ -143,6 +145,7 @@ cmd_start() {
       echo "  ✓ agent healthy"
     else
       echo "  ✗ agent did not become healthy in time; see $AGENT_LOG" >&2
+      failed_services+=("agent")
     fi
   fi
 
@@ -170,10 +173,20 @@ cmd_start() {
       echo "  ✓ web responding"
     else
       echo "  ✗ web did not respond in time; see $WEB_LOG" >&2
+      failed_services+=("web")
     fi
   fi
 
   echo
+  if (( ${#failed_services[@]} > 0 )); then
+    echo "stack started with failed health checks: ${failed_services[*]}" >&2
+    echo "Partial bring-up only. Inspect logs with: $0 logs" >&2
+    if port_listening 5173; then
+      echo "Web may still be reachable at: http://127.0.0.1:5173  (chat: /chat)" >&2
+    fi
+    return 2
+  fi
+
   echo "Open: http://127.0.0.1:5173  (chat: /chat)"
   if [[ "${OPEN_BROWSER:-}" == "1" ]] && command -v open >/dev/null 2>&1; then
     open "http://127.0.0.1:5173/"

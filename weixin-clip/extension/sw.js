@@ -206,14 +206,21 @@ async function extractArticlePayloadFromTab(tabId) {
   return { ok: false, error: '未拿到正文（各 frame 均无有效结果）' };
 }
 
-function openClipWriterWindow() {
+function openClipWriterWindow(jobId) {
   return chrome.windows.create({
-    url: chrome.runtime.getURL('writer.html'),
+    url: chrome.runtime.getURL('writer.html?job=' + encodeURIComponent(jobId)),
     type: 'popup',
     width: 440,
     height: 200,
     focused: true,
   });
+}
+
+function createPendingClipJobId() {
+  if (self.crypto && typeof self.crypto.randomUUID === 'function') {
+    return self.crypto.randomUUID();
+  }
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
 }
 
 async function ensureMenus() {
@@ -267,8 +274,9 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
         return;
       }
 
-      await WeixinClipIdb.setPendingClipPayload(payload);
-      await openClipWriterWindow();
+      var jobId = createPendingClipJobId();
+      await WeixinClipIdb.setPendingClipPayload(jobId, payload);
+      await openClipWriterWindow(jobId);
     } catch (e) {
       var text = (e && e.message) || String(e);
       var name = e && e.name;
